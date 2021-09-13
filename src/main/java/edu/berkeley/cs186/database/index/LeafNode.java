@@ -146,25 +146,48 @@ class LeafNode extends BPlusNode {
     // See BPlusNode.get.
     @Override
     public LeafNode get(DataBox key) {
-        // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
-        // TODO(proj2): implement
+        return this;
+    }
 
-        return null;
+    /**
+     * Create a new page with newKeys and newRids, and link to current page.
+     */
+    private Pair<DataBox, Long> newPage(List<DataBox> newKeys, List<RecordId> newRids) {
+        LeafNode newPage = new LeafNode(metadata, bufferManager, newKeys, newRids, rightSibling, treeContext);
+        long newPageNum = newPage.getPage().getPageNum();
+        rightSibling = Optional.of(newPageNum);
+        return new Pair<>(newKeys.get(0), newPageNum);
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
-        // TODO(proj2): implement
+        if (keys.contains(key)) {
+            String msg = String.format(
+                    "You cannot put duplicate entries with the same key " +
+                            key.toString());
+            throw new BPlusTreeException(msg);
+        }
 
-        return Optional.empty();
+        int index = InnerNode.numLessThanEqual(key, keys);
+        keys.add(index, key);
+        rids.add(index, rid);
+
+        int order = metadata.getOrder();
+        Optional<Pair<DataBox, Long>> result = Optional.empty();
+        if (keys.size() > order * 2) {
+            result = Optional.of(newPage(keys.subList(order, keys.size()), rids.subList(order, rids.size())));
+            keys = keys.subList(0, order);
+            rids = rids.subList(0, order);
+        }
+        sync();
+        return result;
     }
 
     // See BPlusNode.bulkLoad.
@@ -179,9 +202,12 @@ class LeafNode extends BPlusNode {
     // See BPlusNode.remove.
     @Override
     public void remove(DataBox key) {
-        // TODO(proj2): implement
-
-        return;
+        int index = keys.indexOf(key);
+        if (index >= 0) {
+            keys.remove(index);
+            rids.remove(index);
+            sync();
+        }
     }
 
     // Iterators ///////////////////////////////////////////////////////////////
