@@ -466,6 +466,15 @@ public class TestBPlusTree {
                     fromDisk.remove(key);
                     assertEquals(Optional.empty(), fromDisk.get(key));
                 }
+
+                // Test scanAll without elements.
+                assertFalse(tree.scanAll().hasNext());
+
+                // Test scanGreaterEqual without elements.
+                for (int i = 0; i < keys.size(); i += 100) {
+                    final int j = i;
+                    assertFalse(tree.scanGreaterEqual(new IntDataBox(j)).hasNext());
+                }
             }
         }
     }
