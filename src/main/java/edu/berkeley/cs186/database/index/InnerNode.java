@@ -108,7 +108,7 @@ class InnerNode extends BPlusNode {
         if (childResult.isPresent()) {
             DataBox newKey = childResult.get().getFirst();
             long newChild = childResult.get().getSecond();
-
+    
             int newIndex = numLessThanEqual(newKey, keys);
             keys.add(newIndex, newKey);
             children.add(newIndex + 1, newChild);
@@ -129,9 +129,23 @@ class InnerNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
-        // TODO(proj2): implement
+        while (data.hasNext() && keys.size() <= metadata.getOrder() * 2) {
+            Optional<Pair<DataBox, Long>> childResult = getChild(children.size() - 1).bulkLoad(data, fillFactor);
+            if (childResult.isPresent()) {
+                keys.add(childResult.get().getFirst());
+                children.add(childResult.get().getSecond());
+            }
+        }
 
-        return Optional.empty();
+        int order = metadata.getOrder();
+        Optional<Pair<DataBox, Long>> result = Optional.empty();
+        if (keys.size() > order * 2) {
+            result = Optional.of(newPage(keys.subList(order + 1, keys.size()), children.subList(order + 1, children.size()), keys.get(order)));
+            keys = keys.subList(0, order);
+            children = children.subList(0, order + 1);
+        }
+        sync();
+        return result;
     }
 
     // See BPlusNode.remove.
