@@ -764,7 +764,6 @@ public class QueryPlan {
      */
     public Iterator<Record> executeNaive() {
         this.transaction.setAliasMap(this.aliases);
-        try {
             int indexPredicate = this.getEligibleIndexColumnNaive();
             if (indexPredicate != -1) {
                 this.generateIndexPlanNaive(indexPredicate);
@@ -784,9 +783,6 @@ public class QueryPlan {
                 this.addLimit();
             }
             return this.finalOperator.iterator();
-        } finally {
-            this.transaction.clearAliasMap();
-        }
     }
 
 }

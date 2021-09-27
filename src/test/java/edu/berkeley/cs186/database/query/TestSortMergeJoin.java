@@ -110,7 +110,7 @@ public class TestSortMergeJoin {
     @Category(PublicTests.class)
     public void testSimpleSortMergeJoin() {
         d.setWorkMem(5); // B=5
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithAllTypes(100),
                     TestUtils.createSourceWithAllTypes(100),
@@ -146,7 +146,7 @@ public class TestSortMergeJoin {
     @Category(PublicTests.class)
     public void testSortMergeJoinUnsortedInputs()  {
         d.setWorkMem(3); // B=3
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             transaction.createTable(TestUtils.createSchemaWithAllTypes(), "leftTable");
             transaction.createTable(TestUtils.createSchemaWithAllTypes(), "rightTable");
             pinPage(1, 1);

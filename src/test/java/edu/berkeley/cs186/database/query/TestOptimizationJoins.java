@@ -46,7 +46,7 @@ public class TestOptimizationJoins {
         String filename = testDir.getAbsolutePath();
         this.db = new Database(filename, 32);
         this.db.setWorkMem(5); // B=5
-        try(Transaction t = this.db.beginTransaction()) {
+        try (Transaction t = this.db.beginTransaction()) {
             Schema schema = TestUtils.createSchemaWithAllTypes();
             t.dropAllTables();
             t.createTable(schema, "indexed_table");
@@ -62,7 +62,7 @@ public class TestOptimizationJoins {
     @After
     public void afterEach() {
         this.db.waitAllTransactions();
-        try(Transaction t = this.db.beginTransaction()) {
+        try (Transaction t = this.db.beginTransaction()) {
             t.dropAllTables();
         }
         this.db.close();
@@ -160,7 +160,7 @@ public class TestOptimizationJoins {
     @Test
     @Category(PublicTests.class)
     public void testJoinTypeA() {
-        try(Transaction transaction = this.db.beginTransaction()) {
+        try (Transaction transaction = this.db.beginTransaction()) {
             for (int i = 0; i < 2000; ++i) {
                 Record r = new Record(false, i, "!", 0.0f);
                 transaction.insert("table1", r);
@@ -184,7 +184,7 @@ public class TestOptimizationJoins {
     @Test
     @Category(PublicTests.class)
     public void testJoinTypeB() {
-        try(Transaction transaction = this.db.beginTransaction()) {
+        try (Transaction transaction = this.db.beginTransaction()) {
             for (int i = 0; i < 10; ++i) {
                 Record r = new Record(false, i, "!", 0.0f);
                 transaction.insert("indexed_table", r);
@@ -212,7 +212,7 @@ public class TestOptimizationJoins {
     @Test
     @Category(PublicTests.class)
     public void testJoinTypeC() {
-        try(Transaction transaction = db.beginTransaction()) {
+        try (Transaction transaction = db.beginTransaction()) {
             for (int i = 0; i < 2000; ++i) {
                 Record r = new Record(false, i, "!", 0.0f);
                 transaction.insert("indexed_table", r);
@@ -236,7 +236,7 @@ public class TestOptimizationJoins {
     @Test
     @Category(PublicTests.class)
     public void testJoinOrderA() {
-        try(Transaction transaction = db.beginTransaction()) {
+        try (Transaction transaction = db.beginTransaction()) {
             for (int i = 0; i < 500; ++i) {
                 Record r = new Record(false, i, "!", 0.0f);
                 transaction.insert("table1", r);
@@ -275,7 +275,7 @@ public class TestOptimizationJoins {
     @Test
     @Category(PublicTests.class)
     public void testJoinOrderB() {
-        try(Transaction transaction = db.beginTransaction()) {
+        try (Transaction transaction = db.beginTransaction()) {
             for (int i = 0; i < 10; ++i) {
                 Record r = new Record(false, i, "!", 0.0f);
                 transaction.insert("table1", r);
