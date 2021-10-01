@@ -69,7 +69,7 @@ public class SNLJOperator extends JoinOperator {
                 // The left source was empty, nothing to fetch
                 return null;
             }
-            while(true) {
+            while (true) {
                 if (this.rightSourceIterator.hasNext()) {
                     // there's a next right record, join it if there's a match
                     Record rightRecord = rightSourceIterator.next();
