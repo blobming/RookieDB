@@ -271,6 +271,74 @@ public class TestNestedLoopJoin {
     }
 
     @Test
+    @Category(SystemTests.class)
+    public void testNonEmptyWithEmptyPNLJ() {
+        // Joins a non-empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(100),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithNonEmptyPNLJ() {
+        // Joins an empty table with a non-empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithAllTypes(100),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithEmptyPNLJ() {
+        // Joins a empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+
+            startCountIOs();
+
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
     @Category(PublicTests.class)
     public void testSimpleJoinBNLJ() {
         // This test is identical to the above test, but uses your BNLJ
@@ -303,6 +371,74 @@ public class TestNestedLoopJoin {
 
             assertFalse("too many records", outputIterator.hasNext());
             assertEquals("too few records", 100 * 100, numRecords);
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testNonEmptyWithEmptyBNLJ() {
+        // Joins a non-empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(100),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithNonEmptyBNLJ() {
+        // Joins an empty table with a non-empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithAllTypes(100),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithEmptyBNLJ() {
+        // Joins a empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+
+            startCountIOs();
+
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
         }
     }
 
