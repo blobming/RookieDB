@@ -645,7 +645,7 @@ public class QueryPlan {
             Map<Set<String>, QueryOperator> prevMap,
             Map<Set<String>, QueryOperator> pass1Map) {
         Map<Set<String>, QueryOperator> result = new HashMap<>();
-        // TODO(proj3_part2): implement
+
         // We provide a basic description of the logic you have to implement:
         // For each set of tables in prevMap
         //   For each join predicate listed in this.joinPredicates
@@ -661,6 +661,27 @@ public class QueryPlan {
         //      calculate the cheapest join with the new table (the one you
         //      fetched an operator for from pass1Map) and the previously joined
         //      tables. Then, update the result map if needed.
+
+        for (Set<String> tables : prevMap.keySet()) {
+            QueryOperator prevOp = prevMap.get(tables);
+            for (JoinPredicate predicate : this.joinPredicates) {
+                Set<String> resultTables = new HashSet<>(tables);
+                String leftTable = predicate.leftTable, rightTable = predicate.rightTable,
+                    leftColumn = predicate.leftColumn, rightColumn = predicate.rightColumn;
+                
+                if (tables.contains(leftTable) && !tables.contains(rightTable)) {
+                    QueryOperator singleOp = pass1Map.get(Collections.singleton(rightTable));
+                    resultTables.add(rightTable);
+                    QueryOperator minOp = minCostJoinType(prevOp, singleOp, leftColumn, rightColumn);
+                    result.put(resultTables, minOp);
+                } else if (tables.contains(rightTable) && !tables.contains(leftTable)) {
+                    QueryOperator singleOp = pass1Map.get(Collections.singleton(leftTable));
+                    resultTables.add(leftTable);
+                    QueryOperator minOp = minCostJoinType(prevOp, singleOp, rightColumn, leftColumn);
+                    result.put(resultTables, minOp);
+                }
+            }
+        }
         return result;
     }
 
