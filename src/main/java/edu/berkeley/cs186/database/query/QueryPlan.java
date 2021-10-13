@@ -719,7 +719,7 @@ public class QueryPlan {
      */
     public Iterator<Record> execute() {
         this.transaction.setAliasMap(this.aliases);
-        // TODO(proj3_part2): implement
+
         // Pass 1: For each table, find the lowest cost QueryOperator to access
         // the table. Construct a mapping of each table name to its lowest cost
         // operator.
@@ -731,7 +731,23 @@ public class QueryPlan {
         // Set the final operator to the lowest cost operator from the last
         // pass, add group by, project, sort and limit operators, and return an
         // iterator over the final operator.
-        return this.executeNaive(); // TODO(proj3_part2): Replace this!
+
+        Map<Set<String>, QueryOperator> pass1Map = new HashMap<>();
+        for (String name : tableNames) {
+            pass1Map.put(Collections.singleton(name), minCostSingleAccess(name));
+        }
+
+        Map<Set<String>, QueryOperator> finalMap = new HashMap<>(pass1Map);
+        for (int i = 1; i < tableNames.size(); ++i) {
+            finalMap = minCostJoins(finalMap, pass1Map);
+        }
+
+        this.finalOperator = minCostOperator(finalMap);
+        addGroupBy();
+        addProject();
+        addSort();
+        addLimit();
+        return this.finalOperator.iterator();
     }
 
     // EXECUTE NAIVE ///////////////////////////////////////////////////////////
@@ -800,25 +816,25 @@ public class QueryPlan {
      */
     public Iterator<Record> executeNaive() {
         this.transaction.setAliasMap(this.aliases);
-            int indexPredicate = this.getEligibleIndexColumnNaive();
-            if (indexPredicate != -1) {
-                this.generateIndexPlanNaive(indexPredicate);
-            } else {
-                // start off with a scan on the first table
-                this.finalOperator = new SequentialScanOperator(
-                        this.transaction,
-                        this.tableNames.get(0)
-                );
+        int indexPredicate = this.getEligibleIndexColumnNaive();
+        if (indexPredicate != -1) {
+            this.generateIndexPlanNaive(indexPredicate);
+        } else {
+            // start off with a scan on the first table
+            this.finalOperator = new SequentialScanOperator(
+                    this.transaction,
+                    this.tableNames.get(0)
+            );
 
-                // add joins, selects, group by's and projects to our plan
-                this.addJoinsNaive();
-                this.addSelectsNaive();
-                this.addGroupBy();
-                this.addProject();
-                this.addSort();
-                this.addLimit();
-            }
-            return this.finalOperator.iterator();
+            // add joins, selects, group by's and projects to our plan
+            this.addJoinsNaive();
+            this.addSelectsNaive();
+            this.addGroupBy();
+            this.addProject();
+            this.addSort();
+            this.addLimit();
+        }
+        return this.finalOperator.iterator();
     }
 
 }

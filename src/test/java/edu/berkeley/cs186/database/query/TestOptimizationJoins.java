@@ -220,7 +220,9 @@ public class TestOptimizationJoins {
 
             transaction.getTransactionContext().getTable("indexed_table").buildStatistics(10);
 
-            // add a join and a select to the QueryPlan
+            // SELECT * FROM t1 AS indexed_table
+            //    INNER JOIN indexed_table AS t2 ON t1.int = t2.int
+            // WHERE t2.int = 9
             QueryPlan query = transaction.query("indexed_table", "t1");
             query.join("indexed_table", "t2", "t1.int", "t2.int");
             query.select("t2.int", PredicateOperator.EQUALS, 9);
@@ -297,7 +299,10 @@ public class TestOptimizationJoins {
             transaction.getTransactionContext().getTable("table3").buildStatistics(10);
             transaction.getTransactionContext().getTable("table4").buildStatistics(10);
 
-            // add a join and a select to the QueryPlan
+            // SELECT * FROM table1
+            //     INNER JOIN table2 ON table1.int = table2.int
+            //     INNER JOIN table3 ON table2.int = table3.int
+            //     INNER JOIN table4 ON table1.string = table4.string
             QueryPlan query = transaction.query("table1");
             query.join("table2", "table1.int", "table2.int");
             query.join("table3", "table2.int", "table3.int");
