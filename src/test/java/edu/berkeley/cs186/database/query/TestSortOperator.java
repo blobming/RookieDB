@@ -379,4 +379,29 @@ public class TestSortOperator {
         }
     }
 
+    @Test
+    @Category(PublicTests.class)
+    public void testSortEmpty() {
+        try (Transaction transaction = d.beginTransaction()) {
+            d.setWorkMem(3); // B=3
+            List<Record> records = new ArrayList<>();
+
+            startCountIOs();
+            SortOperator s = new SortOperator(
+                    transaction.getTransactionContext(),
+                    new TestSourceOperator(records, TestUtils.createSchemaWithAllTypes()),
+                    "int"
+            );
+            checkIOs(0);
+
+            // Create 1 run with 0 pages of records
+            Run sortedRun = s.sort();
+            checkIOs(0);
+
+            Iterator<Record> iter = sortedRun.iterator();
+            assertFalse("too many records", iter.hasNext());
+            checkIOs(0);
+        }
+    }
+
 }

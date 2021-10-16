@@ -47,7 +47,7 @@ public class TestGraceHashJoin {
     @Test
     @Category(SystemTests.class)
     public void testSimpleSHJ() {
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             Schema schema = TestUtils.createSchemaWithAllTypes();
 
             List<Record> leftRecords = new ArrayList<>();
@@ -91,7 +91,7 @@ public class TestGraceHashJoin {
     @Test
     @Category(PublicTests.class)
     public void testSimpleGHJ() {
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             List<Record> leftRecords = new ArrayList<>();
             List<Record> rightRecords = new ArrayList<>();
 
@@ -124,7 +124,7 @@ public class TestGraceHashJoin {
                     transaction.getTransactionContext()
             );
             List<Record> output = new ArrayList<>();
-            for(Record record: ghj) output.add(record);
+            for (Record record: ghj) output.add(record);
 
             assertEquals(5, output.size());
             assertEquals(expectedOutput, output);
@@ -137,7 +137,7 @@ public class TestGraceHashJoin {
     @Test
     @Category(PublicTests.class)
     public void testGHJDifferentSchemas() {
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             d.setWorkMem(3); // B=3
             Schema leftSchema = new Schema()
                 .add("int", Type.intType())
@@ -190,7 +190,7 @@ public class TestGraceHashJoin {
     @Test
     @Category(PublicTests.class)
     public void testBreakSHJButPassGHJ() {
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             Schema schema = new Schema()
                     .add("int", Type.intType())
                     .add("string", Type.stringType(500));
@@ -207,7 +207,7 @@ public class TestGraceHashJoin {
             );
             try {
                 Iterator<Record> iter = shj.iterator();
-                while(iter.hasNext()) iter.next();
+                while (iter.hasNext()) iter.next();
                 fail("SHJ worked! It shouldn't have...");
             } catch (Exception e) {
                 assertEquals("Simple Hash failed for the wrong reason!",
@@ -223,7 +223,7 @@ public class TestGraceHashJoin {
 
             try {
                 Iterator<Record> iter = ghj.iterator();
-                while(iter.hasNext()) iter.next();
+                while (iter.hasNext()) iter.next();
             } catch (Exception e) {
                 fail(e.getMessage());
             }
@@ -236,7 +236,7 @@ public class TestGraceHashJoin {
     @Test
     @Category(PublicTests.class)
     public void testGHJBreak() {
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             Schema schema = new Schema()
                     .add("int", Type.intType())
                     .add("string", Type.stringType(500));
@@ -254,7 +254,7 @@ public class TestGraceHashJoin {
 
             try {
                 Iterator<Record> records = ghj.iterator();
-                while(records.hasNext()) records.next();
+                while (records.hasNext()) records.next();
                 fail("GHJ Worked! It shouldn't have...");
             } catch (Exception e) {
                 assertEquals("GHJ Failed for the wrong reason...",

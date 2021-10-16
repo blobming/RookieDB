@@ -126,7 +126,7 @@ public class TestNestedLoopJoin {
         // joined on the column "int". Since all records are identical we expect
         // expect exactly 100 x 100 = 10000 records to be yielded.
         // Both tables consist of a single page.
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithAllTypes(100),
                     TestUtils.createSourceWithAllTypes(100),
@@ -166,7 +166,7 @@ public class TestNestedLoopJoin {
         // that iterator is created without error, and hasNext() immediately
         // returns false.
         d.setWorkMem(4); // B=4
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithAllTypes(100),
                     TestUtils.createSourceWithInts(Collections.emptyList()),
@@ -188,7 +188,7 @@ public class TestNestedLoopJoin {
         // that iterator is created without error, and hasNext() immediately
         // returns false.
         d.setWorkMem(4); // B=4
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithInts(Collections.emptyList()),
                     TestUtils.createSourceWithAllTypes(100),
@@ -210,7 +210,7 @@ public class TestNestedLoopJoin {
         // that iterator is created without error, and hasNext() immediately
         // returns false.
         d.setWorkMem(4); // B=4
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithInts(Collections.emptyList()),
                     TestUtils.createSourceWithInts(Collections.emptyList()),
@@ -234,7 +234,7 @@ public class TestNestedLoopJoin {
         // joined on the column "int". Since all records are identical we expect
         // expect exactly 100 x 100 = 10,000 records to be yielded.
         // Both tables consist of a single page.
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithAllTypes(100),
                     TestUtils.createSourceWithAllTypes(100),
@@ -255,16 +255,7 @@ public class TestNestedLoopJoin {
             checkIOs(2);
 
             int numRecords = 0;
-            List<DataBox> expectedRecordValues = new ArrayList<>();
-            expectedRecordValues.add(new BoolDataBox(true));
-            expectedRecordValues.add(new IntDataBox(1));
-            expectedRecordValues.add(new StringDataBox("a", 1));
-            expectedRecordValues.add(new FloatDataBox(1.2f));
-            expectedRecordValues.add(new BoolDataBox(true));
-            expectedRecordValues.add(new IntDataBox(1));
-            expectedRecordValues.add(new StringDataBox("a", 1));
-            expectedRecordValues.add(new FloatDataBox(1.2f));
-            Record expectedRecord = new Record(expectedRecordValues);
+            Record expectedRecord = new Record(true, 1, "a", 1.2f, true, 1, "a", 1.2f);
 
             while (outputIterator.hasNext() && numRecords < 100 * 100) {
                 assertEquals("mismatch at record " + numRecords, expectedRecord, outputIterator.next());
@@ -280,12 +271,80 @@ public class TestNestedLoopJoin {
     }
 
     @Test
+    @Category(SystemTests.class)
+    public void testNonEmptyWithEmptyPNLJ() {
+        // Joins a non-empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(100),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithNonEmptyPNLJ() {
+        // Joins an empty table with a non-empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithAllTypes(100),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithEmptyPNLJ() {
+        // Joins a empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+
+            startCountIOs();
+
+            JoinOperator joinOperator = new PNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
     @Category(PublicTests.class)
     public void testSimpleJoinBNLJ() {
         // This test is identical to the above test, but uses your BNLJ
         // with B=5 instead.
         d.setWorkMem(5); // B=5
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             setSourceOperators(
                     TestUtils.createSourceWithAllTypes(100),
                     TestUtils.createSourceWithAllTypes(100),
@@ -316,6 +375,74 @@ public class TestNestedLoopJoin {
     }
 
     @Test
+    @Category(SystemTests.class)
+    public void testNonEmptyWithEmptyBNLJ() {
+        // Joins a non-empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(100),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithNonEmptyBNLJ() {
+        // Joins an empty table with a non-empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithAllTypes(100),
+                    transaction
+            );
+            startCountIOs();
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
+    @Category(SystemTests.class)
+    public void testEmptyWithEmptyBNLJ() {
+        // Joins a empty table with an empty table. Expected behavior is
+        // that iterator is created without error, and hasNext() immediately
+        // returns false.
+        d.setWorkMem(4); // B=4
+        try (Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    TestUtils.createSourceWithInts(Collections.emptyList()),
+                    transaction
+            );
+
+            startCountIOs();
+
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator,
+                    "int", "int", transaction.getTransactionContext());
+            checkIOs(0);
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse("too many records", outputIterator.hasNext());
+        }
+    }
+
+    @Test
     @Category(PublicTests.class)
     public void testSimplePNLJOutputOrder() {
         // Constructs two tables both the schema (BOOL, INT, STRING(1), FLOAT).
@@ -337,7 +464,7 @@ public class TestNestedLoopJoin {
         // 1 | x   | x   |
         //   +-----+-----+
         //     1 2 | 1 2
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             // This whole section is just to generate the tables described above
             Record r1 = TestUtils.createRecordWithAllTypesWithValue(1);
             Record r2 = TestUtils.createRecordWithAllTypesWithValue(2);
@@ -461,7 +588,7 @@ public class TestNestedLoopJoin {
         // Note that the left (vertical) relation will be processed in blocks
         // (B=4)
         d.setWorkMem(4); // B=4
-        try(Transaction transaction = d.beginTransaction()) {
+        try (Transaction transaction = d.beginTransaction()) {
             // This whole section is just to generate the tables described above
             Record r1 = TestUtils.createRecordWithAllTypesWithValue(1);
             Record r2 = TestUtils.createRecordWithAllTypesWithValue(2);
