@@ -114,7 +114,7 @@ public class TestLockContext {
         tableLockContext.acquire(transactions[0], LockType.S);
         try {
             dbLockContext.release(transactions[0]);
-            fail("Attemptng to release an IS lock when a child resource " +
+            fail("Attempting to release an IS lock when a child resource " +
                     "still holds an S locks should throw an InvalidLockException");
         } catch (InvalidLockException e) {
             // do nothing
@@ -221,11 +221,67 @@ public class TestLockContext {
 
     @Test
     @Category(PublicTests.class)
-    public void testSimplePromote() {
-        TransactionContext t1 = transactions[1];
-        dbLockContext.acquire(t1, LockType.S);
-        dbLockContext.promote(t1, LockType.X);
-        assertTrue(TestLockManager.holds(lockManager, t1, dbLockContext.getResourceName(), LockType.X));
+    public void testSimplePromotePass() {
+        dbLockContext.acquire(transactions[0], LockType.IX);
+        tableLockContext.acquire(transactions[0], LockType.S);
+        tableLockContext.promote(transactions[0], LockType.X);
+
+        assertTrue(TestLockManager.holds(lockManager, transactions[0], tableLockContext.getResourceName(), LockType.X));
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void testPromoteNotPromotion() {
+        dbLockContext.acquire(transactions[0], LockType.IS);
+        tableLockContext.acquire(transactions[0], LockType.S);
+        try {
+            tableLockContext.promote(transactions[0], LockType.S);
+            fail("Attempting to promote to a lock with less privilege " +
+                "should throw an InvalidLockException");
+        } catch (InvalidLockException e) {
+            // do nothing
+        }
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void testPromoteNoPrivilege() {
+        dbLockContext.acquire(transactions[0], LockType.IS);
+        tableLockContext.acquire(transactions[0], LockType.S);
+        try {
+            tableLockContext.promote(transactions[0], LockType.X);
+            fail("Attempting to promote to an X lock when a parent resource " +
+                "only holds an IS locks should throw an InvalidLockException");
+        } catch (InvalidLockException e) {
+            // do nothing
+        }
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void testPromoteSIX() {
+        dbLockContext.acquire(transactions[0], LockType.IX);
+        tableLockContext.acquire(transactions[0], LockType.S);
+        dbLockContext.promote(transactions[0], LockType.SIX);
+
+        // After the sequence above, T0 should only have its lock on the database
+        Assert.assertEquals(Collections.singletonList(new Lock(dbLockContext.getResourceName(), LockType.SIX,
+                        0L)),
+                lockManager.getLocks(transactions[0]));
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void testPromoteRedundantSIX() {
+        dbLockContext.acquire(transactions[0], LockType.SIX);
+        tableLockContext.acquire(transactions[0], LockType.IX);
+        try {
+            tableLockContext.promote(transactions[0], LockType.SIX);
+            fail("Attempting to promote to an SIX lock when a parent resource " +
+                "already holds an SIX locks should throw an InvalidLockException");
+        } catch (InvalidLockException e) {
+            // do nothing
+        }
     }
 
     @Test
@@ -392,18 +448,28 @@ public class TestLockContext {
     @Test
     @Category(PublicTests.class)
     public void testGetNumChildren() {
-        LockContext tableContext = dbLockContext.childContext("table2");
+        LockContext tableLockContext2 = dbLockContext.childContext("table2");
         TransactionContext t1 = transactions[1];
         dbLockContext.acquire(t1, LockType.IX);
-        tableContext.acquire(t1, LockType.IS);
+        tableLockContext.acquire(t1, LockType.IX);
+        pageLockContext.acquire(t1, LockType.S);
+        tableLockContext2.acquire(t1, LockType.IS);
+        assertEquals(2, dbLockContext.getNumChildren(t1));
+        assertEquals(1, tableLockContext.getNumChildren(t1));
+
+        tableLockContext.promote(t1, LockType.SIX);
+        tableLockContext2.promote(t1, LockType.IX);
+        assertEquals(2, dbLockContext.getNumChildren(t1));
+        assertEquals(0, tableLockContext.getNumChildren(t1));
+
+        tableLockContext2.release(t1);
         assertEquals(1, dbLockContext.getNumChildren(t1));
-        tableContext.promote(t1, LockType.IX);
-        assertEquals(1, dbLockContext.getNumChildren(t1));
-        tableContext.release(t1);
-        assertEquals(0, dbLockContext.getNumChildren(t1));
-        tableContext.acquire(t1, LockType.IS);
+
+        pageLockContext.acquire(t1, LockType.X);
+        tableLockContext2.acquire(t1, LockType.IS);
         dbLockContext.escalate(t1);
         assertEquals(0, dbLockContext.getNumChildren(t1));
+        assertEquals(0, tableLockContext.getNumChildren(t1));
     }
 
 }
