@@ -407,8 +407,8 @@ public class Database implements AutoCloseable {
      */
     private List<Pair<RecordId, TableMetadata>> scanTableMetadata() {
         List<Pair<RecordId, TableMetadata>> result = new ArrayList<>();
-        synchronized(tableMetadata) {
-            for(RecordId rid: (Iterable<RecordId>) tableMetadata::ridIterator) {
+        synchronized (tableMetadata) {
+            for (RecordId rid: (Iterable<RecordId>) tableMetadata::ridIterator) {
                 Record record = tableMetadata.getRecord(rid);
                 TableMetadata metadata = new TableMetadata(record);
                 result.add(new Pair<>(rid, metadata));
@@ -419,8 +419,8 @@ public class Database implements AutoCloseable {
 
     public List<Record> scanTableMetadataRecords() {
         List<Record> result = new ArrayList<>();
-        synchronized(tableMetadata) {
-            for(RecordId rid: (Iterable<RecordId>) tableMetadata::ridIterator) {
+        synchronized (tableMetadata) {
+            for (RecordId rid: (Iterable<RecordId>) tableMetadata::ridIterator) {
                 Record record = tableMetadata.getRecord(rid);
                 result.add(record);
             }
@@ -460,8 +460,8 @@ public class Database implements AutoCloseable {
      */
     private List<Pair<RecordId, BPlusTreeMetadata>> scanIndexMetadata() {
         List<Pair<RecordId, BPlusTreeMetadata>> result = new ArrayList<>();
-        synchronized(indexMetadata) {
-            for(RecordId rid: (Iterable<RecordId>) indexMetadata::ridIterator) {
+        synchronized (indexMetadata) {
+            for (RecordId rid: (Iterable<RecordId>) indexMetadata::ridIterator) {
                 Record record = indexMetadata.getRecord(rid);
                 BPlusTreeMetadata metadata = new BPlusTreeMetadata(record);
                 result.add(new Pair<>(rid, metadata));
@@ -472,8 +472,8 @@ public class Database implements AutoCloseable {
 
     public List<Record> scanIndexMetadataRecords() {
         List<Record> result = new ArrayList<>();
-        synchronized(indexMetadata) {
-            for(RecordId rid: (Iterable<RecordId>) indexMetadata::ridIterator) {
+        synchronized (indexMetadata) {
+            for (RecordId rid: (Iterable<RecordId>) indexMetadata::ridIterator) {
                 Record record = indexMetadata.getRecord(rid);
                 result.add(record);
             }
@@ -817,7 +817,7 @@ public class Database implements AutoCloseable {
             int pindex = -1;
             if (predColumnName != null) pindex = s.findField(predColumnName);
 
-            while(recordIds.hasNext()) {
+            while (recordIds.hasNext()) {
                 RecordId curRID = recordIds.next();
                 Record cur = getRecord(tableName, curRID);
                 List<DataBox> recordCopy = cur.getValues();
@@ -836,7 +836,7 @@ public class Database implements AutoCloseable {
             Schema s = tab.getSchema();
             int uindex = s.findField(targetColumnName);
 
-            while(recordIds.hasNext()) {
+            while (recordIds.hasNext()) {
                 RecordId curRID = recordIds.next();
                 Record cur = getRecord(tableName, curRID);
                 List<DataBox> recordCopy = cur.getValues();
@@ -858,7 +858,7 @@ public class Database implements AutoCloseable {
             Schema s = tab.getSchema();
             int pindex = s.getFieldNames().indexOf(predColumnName);
 
-            while(recordIds.hasNext()) {
+            while (recordIds.hasNext()) {
                 RecordId curRID = recordIds.next();
                 Record cur = getRecord(tableName, curRID);
                 List<DataBox> recordCopy = cur.getValues();
@@ -874,7 +874,7 @@ public class Database implements AutoCloseable {
             tableName = tab.getName();
             Iterator<RecordId> recordIds = tab.ridIterator();
 
-            while(recordIds.hasNext()) {
+            while (recordIds.hasNext()) {
                 RecordId curRID = recordIds.next();
                 Record cur = getRecord(tableName, curRID);
                 DataBox cond = condition.apply(cur);
@@ -930,7 +930,11 @@ public class Database implements AutoCloseable {
         @Override
         public void close() {
             try {
-                // TODO(proj4_part2)
+                List<Lock> locks = lockManager.getLocks(this);
+                Collections.reverse(locks);
+                for (Lock lock : locks) {
+                    LockContext.fromResourceName(lockManager, lock.name).release(this);
+                }
                 return;
             } catch (Exception e) {
                 // There's a chance an error message from your release phase
@@ -1076,7 +1080,7 @@ public class Database implements AutoCloseable {
             }
             RecordId rid = getTableMetadata(tableName).getFirst();
             TableMetadata metadata;
-            synchronized(tableMetadata) {
+            synchronized (tableMetadata) {
                 metadata = new TableMetadata(tableMetadata.deleteRecord(rid));
             }
             bufferManager.freePart(metadata.partNum);
