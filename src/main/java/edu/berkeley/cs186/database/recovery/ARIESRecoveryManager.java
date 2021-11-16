@@ -457,17 +457,47 @@ public class ARIESRecoveryManager implements RecoveryManager {
         Map<Long, Long> chkptDPT = new HashMap<>();
         Map<Long, Pair<Transaction.Status, Long>> chkptTxnTable = new HashMap<>();
 
-        // TODO(proj5): generate end checkpoint record(s) for DPT and transaction table
+        // Fill the buffers and write checkpoint logs
+        for (Long pageNum : dirtyPageTable.keySet()) {
+            chkptDPT.put(pageNum, dirtyPageTable.get(pageNum));
+            if (!EndCheckpointLogRecord.fitsInOneRecord(chkptDPT.size() + 1, chkptTxnTable.size())) {
+                writeEndCheckpointLogRecord(chkptDPT, chkptTxnTable);
+            }
+        }
+
+        for (Long transNum : transactionTable.keySet()) {
+            TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+            chkptTxnTable.put(transNum,
+                new Pair<>(transactionEntry.transaction.getStatus(), transactionEntry.lastLSN));
+            if (!EndCheckpointLogRecord.fitsInOneRecord(chkptDPT.size(), chkptTxnTable.size() + 1)) {
+                writeEndCheckpointLogRecord(chkptDPT, chkptTxnTable);
+            }
+        }
 
         // Last end checkpoint record
         LogRecord endRecord = new EndCheckpointLogRecord(chkptDPT, chkptTxnTable);
         logManager.appendToLog(endRecord);
         // Ensure checkpoint is fully flushed before updating the master record
-        flushToLSN(endRecord.getLSN());
+        logManager.flushToLSN(endRecord.getLSN());
 
         // Update master record
         MasterLogRecord masterRecord = new MasterLogRecord(beginLSN);
         logManager.rewriteMasterRecord(masterRecord);
+    }
+
+    /**
+     * Write an end checkpoint record based on DPT and transaction table buffers.
+     * Clear the buffers after the checkpoint log is written.
+     * 
+     * @param chkptDPT the DPT buffer
+     * @param chkptTxnTable the transaction table buffer
+     */
+    private void writeEndCheckpointLogRecord(Map<Long, Long> chkptDPT,
+                                             Map<Long, Pair<Transaction.Status, Long>> chkptTxnTable) {
+        LogRecord endRecord = new EndCheckpointLogRecord(chkptDPT, chkptTxnTable);
+        logManager.appendToLog(endRecord);
+        chkptDPT.clear();
+        chkptTxnTable.clear();
     }
 
     /**
