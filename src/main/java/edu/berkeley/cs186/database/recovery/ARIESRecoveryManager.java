@@ -558,7 +558,7 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * last successful checkpoint.
      *
      * If the log record is for a transaction operation (getTransNum is present)
-     * - update the transaction table
+     *   - update the transaction table
      *
      * If the log record is page-related (getPageNum is present), update the dpt
      *   - update/undoupdate page will dirty pages
@@ -566,28 +566,28 @@ public class ARIESRecoveryManager implements RecoveryManager {
      *   - no action needed for alloc/undofree page
      *
      * If the log record is for a change in transaction status:
-     * - update transaction status to COMMITTING/RECOVERY_ABORTING/COMPLETE
-     * - update the transaction table
-     * - if END_TRANSACTION: clean up transaction (Transaction#cleanup), remove
-     *   from txn table, and add to endedTransactions
+     *   - update transaction status to COMMITTING/RECOVERY_ABORTING/COMPLETE
+     *   - update the transaction table
+     *   - if END_TRANSACTION: clean up transaction (Transaction#cleanup), remove
+     *     from txn table, and add to endedTransactions
      *
      * If the log record is an end_checkpoint record:
-     * - Copy all entries of checkpoint DPT (replace existing entries if any)
-     * - Skip txn table entries for transactions that have already ended
-     * - Add to transaction table if not already present
-     * - Update lastLSN to be the larger of the existing entry's (if any) and
-     *   the checkpoint's
-     * - The status's in the transaction table should be updated if it is possible
-     *   to transition from the status in the table to the status in the
-     *   checkpoint. For example, running -> aborting is a possible transition,
-     *   but aborting -> running is not.
+     *   - copy all entries of checkpoint DPT (replace existing entries if any)
+     *   - skip txn table entries for transactions that have already ended
+     *   - add to transaction table if not already present
+     *   - update lastLSN to be the larger of the existing entry's (if any) and
+     *     the checkpoint's
+     *   - the status's in the transaction table should be updated if it is possible
+     *     to transition from the status in the table to the status in the
+     *     checkpoint. For example, running -> aborting is a possible transition,
+     *     but aborting -> running is not.
      *
      * After all records in the log are processed, for each ttable entry:
-     *  - if COMMITTING: clean up the transaction, change status to COMPLETE,
-     *    remove from the ttable, and append an end record
-     *  - if RUNNING: change status to RECOVERY_ABORTING, and append an abort
-     *    record
-     *  - if RECOVERY_ABORTING: no action needed
+     *   - if COMMITTING: clean up the transaction, change status to COMPLETE,
+     *     remove from the ttable, and append an end record
+     *   - if RUNNING: change status to RECOVERY_ABORTING, and append an abort
+     *     record
+     *   - if RECOVERY_ABORTING: no action needed
      */
     void restartAnalysis() {
         // Read master record
@@ -599,8 +599,122 @@ public class ARIESRecoveryManager implements RecoveryManager {
         long LSN = masterRecord.lastCheckpointLSN;
         // Set of transactions that have completed
         Set<Long> endedTransactions = new HashSet<>();
-        // TODO(proj5): implement
-        return;
+
+        Iterator<LogRecord> logs = logManager.scanFrom(LSN);
+        while (logs.hasNext()) {
+            record = logs.next();
+            if (record.getTransNum().isPresent()) {
+                processTransaction(record, endedTransactions);
+            }
+            if (record.getPageNum().isPresent()) {
+                processPage(record);
+            }
+            if (record.getType() == LogType.END_CHECKPOINT) {
+                Map<Long, Long> chkptDPT = record.getDirtyPageTable();
+                Map<Long, Pair<Transaction.Status, Long>> chkptTxnTable = record.getTransactionTable();
+                processCheckpoint(chkptDPT, chkptTxnTable, endedTransactions);
+            }
+        }
+
+        for (long transNum : transactionTable.keySet()) {
+            TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+            switch (transactionEntry.transaction.getStatus()) {
+                case COMMITTING:
+                    transactionEntry.transaction.cleanup();
+                    end(transNum);
+                    break;
+                case RUNNING:
+                    abort(transNum);
+                    transactionEntry.transaction.setStatus(Status.RECOVERY_ABORTING);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Called when the log record is for a transaction operation.
+     * Updates the transaction table according to the record.
+     * 
+     * @param record log record being processed
+     * @param endedTransactions the set of ended transactions
+     */
+    void processTransaction(LogRecord record, Set<Long> endedTransactions) {
+        long transNum = record.getTransNum().get();
+        if (!transactionTable.containsKey(transNum)) {
+            startTransaction(newTransaction.apply(transNum));
+        }
+        TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+        Transaction transaction = transactionEntry.transaction;
+        transactionEntry.lastLSN = record.getLSN();
+
+        switch (record.getType()) {
+            case COMMIT_TRANSACTION:
+                transaction.setStatus(Status.COMMITTING);
+                break;
+            case ABORT_TRANSACTION:
+                transaction.setStatus(Status.RECOVERY_ABORTING);
+                break;
+            case END_TRANSACTION:
+                transaction.cleanup();
+                transaction.setStatus(Status.COMPLETE);
+                transactionTable.remove(transNum);
+                endedTransactions.add(transNum);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Called when the log record is page-related.
+     * Updates the dirty page table according to the record.
+     * 
+     * @param record log record being processed
+     */
+    void processPage(LogRecord record) {
+        long pageNum = record.getPageNum().get();
+        switch (record.getType()) {
+            case UPDATE_PAGE: case UNDO_UPDATE_PAGE:
+                dirtyPageTable.putIfAbsent(pageNum, record.getLSN());
+                break;
+            case FREE_PAGE: case UNDO_ALLOC_PAGE:
+                dirtyPageTable.remove(pageNum);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Called when the log record is an end_checkpoint record.
+     * Synchronize the analyzing status with checkpoints.
+     * 
+     * @param chkptDPT DPT in the checkpoint
+     * @param chkptTxnTable transaction table in the checkpoint
+     */
+    void processCheckpoint(Map<Long, Long> chkptDPT,
+                           Map<Long, Pair<Transaction.Status, Long>> chkptTxnTable,
+                           Set<Long> endedTransactions) {
+        dirtyPageTable.putAll(chkptDPT);
+
+        for (long transNum : chkptTxnTable.keySet()) {
+            if (endedTransactions.contains(transNum)) continue;
+
+            if (!transactionTable.containsKey(transNum)) {
+                startTransaction(newTransaction.apply(transNum));
+            }
+            TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+            Transaction transaction = transactionEntry.transaction;
+            Pair<Transaction.Status, Long> txnInfo = chkptTxnTable.get(transNum);
+            transactionEntry.lastLSN = Math.max(transactionEntry.lastLSN, (long) txnInfo.getSecond());
+            if (transaction.getStatus() == Status.RUNNING) {
+                Status status = txnInfo.getFirst() == Status.ABORTING ?
+                                Status.RECOVERY_ABORTING : txnInfo.getFirst();
+                transaction.setStatus(status);
+            }
+        }
     }
 
     /**
