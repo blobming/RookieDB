@@ -723,15 +723,60 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * First, determine the starting point for REDO from the dirty page table.
      *
      * Then, scanning from the starting point, if the record is redoable and
-     * - partition-related (Alloc/Free/UndoAlloc/UndoFree..Part), always redo it
-     * - allocates a page (AllocPage/UndoFreePage), always redo it
-     * - modifies a page (Update/UndoUpdate/Free/UndoAlloc....Page) in
-     *   the dirty page table with LSN >= recLSN, the page is fetched from disk,
-     *   the pageLSN is checked, and the record is redone if needed.
+     *   - partition-related (Alloc/Free/UndoAlloc/UndoFree..Part), always redo it
+     *   - allocates a page (AllocPage/UndoFreePage), always redo it
+     *   - modifies a page (Update/UndoUpdate/Free/UndoAlloc....Page) in
+     *     the dirty page table with LSN >= recLSN, the page is fetched from disk,
+     *     the pageLSN is checked, and the record is redone if needed.
      */
     void restartRedo() {
-        // TODO(proj5): implement
+        // Get start redoing LSN
+        if (dirtyPageTable.isEmpty()) {
+            return;
+        }
+
+        long LSN = Collections.min(dirtyPageTable.values());
+        Iterator<LogRecord> logs = logManager.scanFrom(LSN);
+        while (logs.hasNext()) {
+            LogRecord record = logs.next();
+            if (!record.isRedoable()) continue;
+
+            switch (record.type) {
+                case ALLOC_PART: case UNDO_ALLOC_PART:
+                case FREE_PART: case UNDO_FREE_PART:
+                case ALLOC_PAGE: case UNDO_FREE_PAGE:
+                    record.redo(this, diskSpaceManager, bufferManager);
+                    break;
+                case UPDATE_PAGE: case UNDO_UPDATE_PAGE:
+                case FREE_PAGE: case UNDO_ALLOC_PAGE:
+                    redoDirtyPage(record);
+                    break;
+                default:
+                    break;
+            }
+        }
         return;
+    }
+
+    /**
+     * This helper method redo the record that dirties the page.
+     * 
+     * @param record log record being redone
+     */
+    void redoDirtyPage(LogRecord record)
+    {
+        long pageNum = record.getPageNum().get();
+        if (dirtyPageTable.containsKey(pageNum) &&
+            record.LSN >= dirtyPageTable.get(pageNum)) {
+            Page page = bufferManager.fetchPage(new DummyLockContext(), pageNum);
+            try {
+                if (record.LSN > page.getPageLSN()) {
+                    record.redo(this, diskSpaceManager, bufferManager);
+                }
+            } finally {
+                page.unpin();
+            }
+        }
     }
 
     /**
