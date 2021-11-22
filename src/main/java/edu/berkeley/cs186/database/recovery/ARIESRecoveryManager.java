@@ -786,15 +786,40 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * transactions.
      *
      * Then, always working on the largest LSN in the priority queue until we are done,
-     * - if the record is undoable, undo it, and append the appropriate CLR
-     * - replace the entry with a new one, using the undoNextLSN if available,
-     *   if the prevLSN otherwise.
-     * - if the new LSN is 0, clean up the transaction, set the status to complete,
-     *   and remove from transaction table.
+     *   - if the record is undoable, undo it, and append the appropriate CLR
+     *   - replace the entry with a new one, using the undoNextLSN if available,
+     *     if the prevLSN otherwise.
+     *   - if the new LSN is 0, clean up the transaction, set the status to complete,
+     *     and remove from transaction table.
      */
     void restartUndo() {
-        // TODO(proj5): implement
-        return;
+        PriorityQueue<Pair<Long, Long>> queue = new PriorityQueue<>(new PairFirstReverseComparator<Long, Long>());
+        for (long transNum : transactionTable.keySet()) {
+            TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+            queue.add(new Pair<>(transactionEntry.lastLSN, transNum));
+        }
+
+        while (!queue.isEmpty()) {
+            Pair<Long, Long> lastTrans = queue.poll();
+            long currentLSN = lastTrans.getFirst(), transNum = lastTrans.getSecond();
+            TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+
+            LogRecord current = logManager.fetchLogRecord(currentLSN);
+            if (current.isUndoable()) {
+                LogRecord CLR = current.undo(transactionEntry.lastLSN);
+                transactionEntry.lastLSN = logManager.appendToLog(CLR);
+                CLR.redo(this, diskSpaceManager, bufferManager);
+            }
+            currentLSN = current.getUndoNextLSN().isPresent() ?
+                         current.getUndoNextLSN().get() : current.getPrevLSN().get();
+            
+            if (currentLSN == 0) {
+                transactionEntry.transaction.cleanup();
+                end(transNum);
+            } else {
+                queue.add(new Pair<>(currentLSN, transNum));
+            }
+        }
     }
 
     /**
